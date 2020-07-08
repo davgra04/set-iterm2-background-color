@@ -9,9 +9,24 @@ import colorsys
 import os
 from pprint import pprint, pformat
 
-last_value_path="/Users/devgru/.iterm-last-hue"
+################################################################################
+# configuration
+################################################################################
+
+last_value_path="/Users/devgru/.iterm-last-hue"     # stores the last used hue value
+min_h_diff = 0.3        # limit to hues that are a minimum distance away from the last value
+
+# alpha not currently doing anything! Adjust background transparency in preferences
+alpha = 0.10        # window background opacity     (0 - 1.0)  
+lightness = 0.20    # window background lightness   (0 - 1.0)
+saturation = 0.80   # window background saturation  (0 - 1.0)
+
+################################################################################
+# functions
+################################################################################
 
 def get_last_hue():
+    """reads the last hue value from disk"""
     default = 0.0
     if not os.path.isfile(last_value_path):
         set_last_hue(0.0)
@@ -22,17 +37,19 @@ def get_last_hue():
             hue_raw = ifh.readline()
         except FileNotFoundError as e:
             print("AAAAAUUUUUUGGGGGGHHHHHHH: File not found!: ", e)
+            exit()
 
         try:
             hue = float(hue_raw)
             return hue
         except ValueError as e:
             print("AAAAAUUUUUUGGGGGGHHHHHHH: Unable to read as float: ", e)
+            exit()
 
     return default
 
 def set_last_hue(hue):
-
+    """saves new last hue value to disk"""
     try:
         hue = float(hue)
     except ValueError:
@@ -42,25 +59,15 @@ def set_last_hue(hue):
     with open(last_value_path, "w") as ofh:
         ofh.write(str(hue))
 
-
-
-alpha = int(255 * 0.80)
-# init_c = (0, 0.8, 1.0)                  # rgb
-# init_c_hls = colorsys.rgb_to_hls(       # hls
-#     init_c[0],
-#     init_c[1],
-#     init_c[2],
-# )
-
 async def SetRandomColorInSession(connection, session, preset_name):
-    # set random color
+    """sets background of current iTerm2 session to a random color"""
+
     ## randomly adjust hue and convert to rgb
     print("randomly adjust hue and convert to rgb")
-
     last_hue = get_last_hue()
     hue = last_hue
 
-    while abs(last_hue - hue) < 0.1 or abs(last_hue - hue + 1.0) < 0.1 or abs(last_hue - hue - 1.0) < 0.1:
+    while abs(last_hue - hue) < min_h_diff or abs(last_hue - hue + 1.0) < min_h_diff or abs(last_hue - hue - 1.0) < min_h_diff:
         print("    generating new hue...")
         hue = random.random()
 
@@ -68,8 +75,8 @@ async def SetRandomColorInSession(connection, session, preset_name):
 
     c = colorsys.hls_to_rgb(
         hue,
-        0.2,
-        0.5,
+        lightness,
+        saturation,
     )
     pprint(c)
 
@@ -78,45 +85,32 @@ async def SetRandomColorInSession(connection, session, preset_name):
         int(c[0] * 255),
         int(c[1] * 255),
         int(c[2] * 255),
-        alpha
+        int(alpha * 255)
     )
-
 
     # get profile
     print("getting profile...")
     profile = await session.async_get_profile()
     if not profile:
+        print("couldn't get profile!")
         return
 
-    print("setting backgorund color...")
+    print("setting background color...")
     await profile.async_set_background_color(c)
-    # profile.set_background_color(c)
 
-
-# async def SetPresetInSession(connection, session, preset_name):
-
-#     preset = await iterm2.ColorPreset.async_get(connection, preset_name)
-#     if not preset:
-#         return
-#     profile = await session.async_get_profile()
-#     if not profile:
-#         return
-#     await profile.async_set_color_preset(preset)
+################################################################################
+# main function
+################################################################################
 
 async def main(connection):
-
     app = await iterm2.async_get_app(connection)
-
     color_preset_names = await iterm2.ColorPreset.async_get_list(connection)
-
 
     async with iterm2.NewSessionMonitor(connection) as mon:
         while True:
             session_id = await mon.async_get()
             session = app.get_session_by_id(session_id)
             if session:
-                # await SetPresetInSession(connection, session, random.choice(color_preset_names))
                 await SetRandomColorInSession(connection, session, random.choice(color_preset_names))
-                
 
 iterm2.run_forever(main)
