@@ -13,7 +13,8 @@ from pprint import pprint, pformat
 # configuration
 ################################################################################
 
-last_value_path="/Users/devgru/.iterm-last-hue"     # stores the last used hue value
+homedir = os.path.expanduser("~")
+last_value_path=f"{homedir}/.iterm-last-hue"     # stores the last used hue value
 min_h_diff = 0.3        # limit to hues that are a minimum distance away from the last value
 
 # alpha not currently doing anything! Adjust background transparency in preferences
